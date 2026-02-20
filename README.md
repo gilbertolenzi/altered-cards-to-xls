@@ -45,6 +45,6 @@ Edit `src/config.py` to change:
 | `ITEMS_PER_PAGE` | `36` | API page size |
 | `FACTIONS` | All 7 factions | Which factions to fetch |
 
-## API Attribution
+## Disclaimer
 
-Card data is sourced from the public [Altered.gg API](https://api.altered.gg). This project is not affiliated with or endorsed by Equinox / Altered.
+All card names, images, artwork, and related intellectual property belong to [Equinox / Altered](https://www.altered.gg). This project is **not** affiliated with, endorsed by, or associated with Equinox in any way. Card data and images are retrieved from their public API purely for personal collection-tracking purposes. No ownership of any Altered TCG content is claimed.
