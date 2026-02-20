@@ -16,3 +16,7 @@ OUTPUT_FILENAME = os.path.join(BASE_DIR, "altered_cards_catalogue.xlsx")
 
 THUMB_WIDTH = 80
 THUMB_HEIGHT = 110
+
+# Google Sheets
+GOOGLE_CREDENTIALS_FILE = os.path.join(BASE_DIR, "credentials.json")
+GOOGLE_SHEET_NAME = "Altered TCG Catalogue"

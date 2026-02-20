@@ -55,112 +55,27 @@ def build_catalogue(cards: list[dict], output_path: str) -> None:
     wb = xlsxwriter.Workbook(output_path, {"use_zip64": True})
     ws = wb.add_worksheet("Altered Cards")
 
-    header_fmt = wb.add_format(
-        {
-            "bold": True,
-            "font_name": "Calibri",
-            "font_size": 11,
-            "font_color": "#FFFFFF",
-            "bg_color": "#2F5496",
-            "align": "center",
-            "valign": "vcenter",
-            "text_wrap": True,
-            "border": 1,
-            "border_color": "#D9D9D9",
-        }
-    )
-    cell_fmt = wb.add_format(
-        {
-            "valign": "vcenter",
-            "border": 1,
-            "border_color": "#D9D9D9",
-        }
-    )
-    alt_fmt = wb.add_format(
-        {
-            "valign": "vcenter",
-            "border": 1,
-            "border_color": "#D9D9D9",
-            "bg_color": "#F2F6FC",
-        }
+    num_fmt = wb.add_format({"align": "center", "valign": "vcenter"})
+    qty_fmt = wb.add_format(
+        {"align": "center", "valign": "vcenter", "num_format": "0"}
     )
     link_fmt = wb.add_format(
         {
             "valign": "vcenter",
-            "border": 1,
-            "border_color": "#D9D9D9",
             "font_color": "#0563C1",
             "underline": True,
         }
     )
-    alt_link_fmt = wb.add_format(
-        {
-            "valign": "vcenter",
-            "border": 1,
-            "border_color": "#D9D9D9",
-            "font_color": "#0563C1",
-            "underline": True,
-            "bg_color": "#F2F6FC",
-        }
-    )
-    qty_fmt = wb.add_format(
-        {
-            "valign": "vcenter",
-            "align": "center",
-            "border": 1,
-            "border_color": "#D9D9D9",
-            "num_format": "0",
-        }
-    )
-    alt_qty_fmt = wb.add_format(
-        {
-            "valign": "vcenter",
-            "align": "center",
-            "border": 1,
-            "border_color": "#D9D9D9",
-            "num_format": "0",
-            "bg_color": "#F2F6FC",
-        }
-    )
-    num_fmt = wb.add_format(
-        {
-            "valign": "vcenter",
-            "align": "center",
-            "border": 1,
-            "border_color": "#D9D9D9",
-        }
-    )
-    alt_num_fmt = wb.add_format(
-        {
-            "valign": "vcenter",
-            "align": "center",
-            "border": 1,
-            "border_color": "#D9D9D9",
-            "bg_color": "#F2F6FC",
-        }
-    )
+    cell_fmt = wb.add_format({"valign": "vcenter"})
 
-    for col_idx, (header, width) in enumerate(COLUMNS):
-        ws.write(0, col_idx, header, header_fmt)
+    for col_idx, (_, width) in enumerate(COLUMNS):
         ws.set_column(col_idx, col_idx, width)
-
-    ws.set_row(0, 24)
-    ws.freeze_panes(1, 0)
-
-    last_col = len(COLUMNS) - 1
-    ws.autofilter(0, 0, len(cards), last_col)
 
     total = len(cards)
     for idx, card in enumerate(cards):
         row = idx + 1
         if idx % 50 == 0:
             print(f"  Building row {row}/{total} ...")
-
-        is_alt = idx % 2 == 1
-        fmt = alt_fmt if is_alt else cell_fmt
-        nfmt = alt_num_fmt if is_alt else num_fmt
-        qfmt = alt_qty_fmt if is_alt else qty_fmt
-        lfmt = alt_link_fmt if is_alt else link_fmt
 
         ws.set_row(row, ROW_HEIGHT_PT)
 
@@ -181,26 +96,45 @@ def build_catalogue(cards: list[dict], output_path: str) -> None:
                 )
             except Exception:
                 pass
-        ws.write_blank(row, 0, "", fmt)
 
-        ws.write(row, 1, card["name"], fmt)
-        ws.write(row, 2, card["card_set"], fmt)
-        ws.write(row, 3, card["faction"], fmt)
-        ws.write(row, 4, card["rarity"], fmt)
-        ws.write(row, 5, card["card_type"], fmt)
-
-        ws.write(row, 6, _to_int(card["main_cost"]), nfmt)
-        ws.write(row, 7, _to_int(card["recall_cost"]), nfmt)
-        ws.write(row, 8, _to_int(card["mountain_power"]), nfmt)
-        ws.write(row, 9, _to_int(card["ocean_power"]), nfmt)
-        ws.write(row, 10, _to_int(card["forest_power"]), nfmt)
-
-        ws.write(row, 11, 0, qfmt)
+        ws.write(row, 1, card["name"], cell_fmt)
+        ws.write(row, 2, card["card_set"], cell_fmt)
+        ws.write(row, 3, card["faction"], cell_fmt)
+        ws.write(row, 4, card["rarity"], cell_fmt)
+        ws.write(row, 5, card["card_type"], cell_fmt)
+        ws.write(row, 6, _to_int(card["main_cost"]), num_fmt)
+        ws.write(row, 7, _to_int(card["recall_cost"]), num_fmt)
+        ws.write(row, 8, _to_int(card["mountain_power"]), num_fmt)
+        ws.write(row, 9, _to_int(card["ocean_power"]), num_fmt)
+        ws.write(row, 10, _to_int(card["forest_power"]), num_fmt)
+        ws.write(row, 11, 0, qty_fmt)
 
         if card["image_url"]:
-            ws.write_url(row, 12, card["image_url"], lfmt, "View Full")
-        else:
-            ws.write_blank(row, 12, "", fmt)
+            ws.write_url(row, 12, card["image_url"], link_fmt, "View Full")
+
+    last_row = len(cards)
+    last_col = len(COLUMNS) - 1
+    table_columns = [{"header": name} for name, _ in COLUMNS]
+    table_columns[11]["format"] = qty_fmt
+    table_columns[12]["format"] = link_fmt
+    for i in range(6, 11):
+        table_columns[i]["format"] = num_fmt
+
+    ws.add_table(
+        0,
+        0,
+        last_row,
+        last_col,
+        {
+            "columns": table_columns,
+            "style": "Table Style Medium 2",
+            "banded_rows": True,
+            "autofilter": True,
+            "name": "AlteredCards",
+        },
+    )
+
+    ws.freeze_panes(1, 0)
 
     wb.close()
     print(f"Saved catalogue to {output_path}")
