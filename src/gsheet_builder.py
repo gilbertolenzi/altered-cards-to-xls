@@ -12,6 +12,7 @@ SCOPES = [
 ]
 
 HEADERS = [
+    "Qty",
     "Thumbnail",
     "Name",
     "Set",
@@ -23,11 +24,10 @@ HEADERS = [
     "Mountain",
     "Ocean",
     "Forest",
-    "Quantity",
     "Full Image",
 ]
 
-COL_WIDTHS = [120, 220, 200, 120, 100, 120, 70, 100, 85, 85, 85, 85, 110]
+COL_WIDTHS = [60, 120, 220, 200, 120, 100, 120, 70, 100, 85, 85, 85, 110]
 
 BATCH_SIZE = 500
 
@@ -50,6 +50,7 @@ def _card_to_row(card: dict, row_num: int) -> list:
     link_formula = f'=HYPERLINK("{image_url}", "View Full")' if image_url else ""
 
     return [
+        0,
         thumb_formula,
         card["name"],
         card["card_set"],
@@ -61,7 +62,6 @@ def _card_to_row(card: dict, row_num: int) -> list:
         _to_int(card["mountain_power"]),
         _to_int(card["ocean_power"]),
         _to_int(card["forest_power"]),
-        0,
         link_formula,
     ]
 
@@ -104,14 +104,18 @@ def build_gsheet(cards: list[dict]) -> str:
 
     requests = []
 
-    # Freeze header row
+    # Freeze header row + Qty column
     requests.append({
         "updateSheetProperties": {
             "properties": {
                 "sheetId": sheet_id,
-                "gridProperties": {"frozenRowCount": 1},
+                "gridProperties": {
+                    "frozenRowCount": 1,
+                    "frozenColumnCount": 1,
+                },
             },
-            "fields": "gridProperties.frozenRowCount",
+            "fields": "gridProperties.frozenRowCount,"
+                      "gridProperties.frozenColumnCount",
         }
     })
 
@@ -170,8 +174,8 @@ def build_gsheet(cards: list[dict]) -> str:
             }
         })
 
-    # Center-align numeric columns (Cost through Forest = cols 6-10, Quantity = 11)
-    for col_idx in [6, 7, 8, 9, 10, 11]:
+    # Center-align Qty (col 0) and numeric columns (Cost through Forest = cols 7-11)
+    for col_idx in [0, 7, 8, 9, 10, 11]:
         requests.append({
             "repeatCell": {
                 "range": {

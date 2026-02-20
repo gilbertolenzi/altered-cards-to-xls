@@ -8,6 +8,7 @@ from PIL import Image as PilImage
 from src.config import TEMP_DIR, THUMB_HEIGHT, THUMB_WIDTH
 
 COLUMNS = [
+    ("Qty", 8),
     ("Thumbnail", 16),
     ("Name", 30),
     ("Set", 26),
@@ -19,7 +20,6 @@ COLUMNS = [
     ("Mountain", 12),
     ("Ocean", 12),
     ("Forest", 12),
-    ("Quantity", 12),
     ("Full Image", 16),
 ]
 
@@ -79,12 +79,14 @@ def build_catalogue(cards: list[dict], output_path: str) -> None:
 
         ws.set_row(row, ROW_HEIGHT_PT)
 
+        ws.write(row, 0, 0, qty_fmt)
+
         thumb_path = _download_thumbnail(card["image_url"], card["reference"])
         if thumb_path:
             try:
                 ws.insert_image(
                     row,
-                    0,
+                    1,
                     thumb_path,
                     {
                         "x_scale": THUMB_WIDTH / PilImage.open(thumb_path).width,
@@ -97,17 +99,16 @@ def build_catalogue(cards: list[dict], output_path: str) -> None:
             except Exception:
                 pass
 
-        ws.write(row, 1, card["name"], cell_fmt)
-        ws.write(row, 2, card["card_set"], cell_fmt)
-        ws.write(row, 3, card["faction"], cell_fmt)
-        ws.write(row, 4, card["rarity"], cell_fmt)
-        ws.write(row, 5, card["card_type"], cell_fmt)
-        ws.write(row, 6, _to_int(card["main_cost"]), num_fmt)
-        ws.write(row, 7, _to_int(card["recall_cost"]), num_fmt)
-        ws.write(row, 8, _to_int(card["mountain_power"]), num_fmt)
-        ws.write(row, 9, _to_int(card["ocean_power"]), num_fmt)
-        ws.write(row, 10, _to_int(card["forest_power"]), num_fmt)
-        ws.write(row, 11, 0, qty_fmt)
+        ws.write(row, 2, card["name"], cell_fmt)
+        ws.write(row, 3, card["card_set"], cell_fmt)
+        ws.write(row, 4, card["faction"], cell_fmt)
+        ws.write(row, 5, card["rarity"], cell_fmt)
+        ws.write(row, 6, card["card_type"], cell_fmt)
+        ws.write(row, 7, _to_int(card["main_cost"]), num_fmt)
+        ws.write(row, 8, _to_int(card["recall_cost"]), num_fmt)
+        ws.write(row, 9, _to_int(card["mountain_power"]), num_fmt)
+        ws.write(row, 10, _to_int(card["ocean_power"]), num_fmt)
+        ws.write(row, 11, _to_int(card["forest_power"]), num_fmt)
 
         if card["image_url"]:
             ws.write_url(row, 12, card["image_url"], link_fmt, "View Full")
@@ -115,9 +116,9 @@ def build_catalogue(cards: list[dict], output_path: str) -> None:
     last_row = len(cards)
     last_col = len(COLUMNS) - 1
     table_columns = [{"header": name} for name, _ in COLUMNS]
-    table_columns[11]["format"] = qty_fmt
+    table_columns[0]["format"] = qty_fmt
     table_columns[12]["format"] = link_fmt
-    for i in range(6, 11):
+    for i in range(7, 12):
         table_columns[i]["format"] = num_fmt
 
     ws.add_table(
@@ -134,7 +135,7 @@ def build_catalogue(cards: list[dict], output_path: str) -> None:
         },
     )
 
-    ws.freeze_panes(1, 0)
+    ws.freeze_panes(1, 1)
 
     wb.close()
     print(f"Saved catalogue to {output_path}")
