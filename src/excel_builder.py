@@ -2,48 +2,31 @@ import io
 import os
 
 import requests
-from openpyxl import Workbook
-from openpyxl.drawing.image import Image as XlImage
-from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
-from openpyxl.utils import get_column_letter
+import xlsxwriter
 from PIL import Image as PilImage
 
 from src.config import TEMP_DIR, THUMB_HEIGHT, THUMB_WIDTH
 
 COLUMNS = [
-    ("Thumbnail", 14),
-    ("Name", 28),
-    ("Set", 24),
-    ("Faction", 14),
-    ("Rarity", 12),
-    ("Type", 14),
-    ("Cost", 8),
-    ("Recall Cost", 12),
-    ("Mountain", 10),
-    ("Ocean", 10),
-    ("Forest", 10),
-    ("Quantity", 10),
-    ("Full Image", 14),
+    ("Thumbnail", 16),
+    ("Name", 30),
+    ("Set", 26),
+    ("Faction", 16),
+    ("Rarity", 14),
+    ("Type", 16),
+    ("Cost", 10),
+    ("Recall Cost", 14),
+    ("Mountain", 12),
+    ("Ocean", 12),
+    ("Forest", 12),
+    ("Quantity", 12),
+    ("Full Image", 16),
 ]
 
-HEADER_FONT = Font(name="Calibri", bold=True, size=11, color="FFFFFF")
-HEADER_FILL = PatternFill(start_color="2F5496", end_color="2F5496", fill_type="solid")
-HEADER_ALIGNMENT = Alignment(horizontal="center", vertical="center", wrap_text=True)
-CELL_ALIGNMENT = Alignment(vertical="center", wrap_text=False)
-THIN_BORDER = Border(
-    left=Side(style="thin", color="D9D9D9"),
-    right=Side(style="thin", color="D9D9D9"),
-    top=Side(style="thin", color="D9D9D9"),
-    bottom=Side(style="thin", color="D9D9D9"),
-)
-ALT_ROW_FILL = PatternFill(start_color="F2F6FC", end_color="F2F6FC", fill_type="solid")
-
-ROW_HEIGHT_PX = THUMB_HEIGHT + 4
-ROW_HEIGHT_PT = ROW_HEIGHT_PX * 0.75
+ROW_HEIGHT_PT = (THUMB_HEIGHT + 4) * 0.75
 
 
 def _download_thumbnail(image_url: str, reference: str) -> str | None:
-    """Download card image and save a resized thumbnail. Returns path or None."""
     if not image_url:
         return None
 
@@ -69,89 +52,161 @@ def _download_thumbnail(image_url: str, reference: str) -> str | None:
 
 
 def build_catalogue(cards: list[dict], output_path: str) -> None:
-    """Build an Excel catalogue from the flat card list."""
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Altered Cards"
+    wb = xlsxwriter.Workbook(output_path, {"use_zip64": True})
+    ws = wb.add_worksheet("Altered Cards")
 
-    # --- header row ---
-    for col_idx, (header, width) in enumerate(COLUMNS, start=1):
-        cell = ws.cell(row=1, column=col_idx, value=header)
-        cell.font = HEADER_FONT
-        cell.fill = HEADER_FILL
-        cell.alignment = HEADER_ALIGNMENT
-        cell.border = THIN_BORDER
-        ws.column_dimensions[get_column_letter(col_idx)].width = width
+    header_fmt = wb.add_format(
+        {
+            "bold": True,
+            "font_name": "Calibri",
+            "font_size": 11,
+            "font_color": "#FFFFFF",
+            "bg_color": "#2F5496",
+            "align": "center",
+            "valign": "vcenter",
+            "text_wrap": True,
+            "border": 1,
+            "border_color": "#D9D9D9",
+        }
+    )
+    cell_fmt = wb.add_format(
+        {
+            "valign": "vcenter",
+            "border": 1,
+            "border_color": "#D9D9D9",
+        }
+    )
+    alt_fmt = wb.add_format(
+        {
+            "valign": "vcenter",
+            "border": 1,
+            "border_color": "#D9D9D9",
+            "bg_color": "#F2F6FC",
+        }
+    )
+    link_fmt = wb.add_format(
+        {
+            "valign": "vcenter",
+            "border": 1,
+            "border_color": "#D9D9D9",
+            "font_color": "#0563C1",
+            "underline": True,
+        }
+    )
+    alt_link_fmt = wb.add_format(
+        {
+            "valign": "vcenter",
+            "border": 1,
+            "border_color": "#D9D9D9",
+            "font_color": "#0563C1",
+            "underline": True,
+            "bg_color": "#F2F6FC",
+        }
+    )
+    qty_fmt = wb.add_format(
+        {
+            "valign": "vcenter",
+            "align": "center",
+            "border": 1,
+            "border_color": "#D9D9D9",
+            "num_format": "0",
+        }
+    )
+    alt_qty_fmt = wb.add_format(
+        {
+            "valign": "vcenter",
+            "align": "center",
+            "border": 1,
+            "border_color": "#D9D9D9",
+            "num_format": "0",
+            "bg_color": "#F2F6FC",
+        }
+    )
+    num_fmt = wb.add_format(
+        {
+            "valign": "vcenter",
+            "align": "center",
+            "border": 1,
+            "border_color": "#D9D9D9",
+        }
+    )
+    alt_num_fmt = wb.add_format(
+        {
+            "valign": "vcenter",
+            "align": "center",
+            "border": 1,
+            "border_color": "#D9D9D9",
+            "bg_color": "#F2F6FC",
+        }
+    )
 
-    ws.row_dimensions[1].height = 30
+    for col_idx, (header, width) in enumerate(COLUMNS):
+        ws.write(0, col_idx, header, header_fmt)
+        ws.set_column(col_idx, col_idx, width)
 
-    # --- data rows ---
+    ws.set_row(0, 24)
+    ws.freeze_panes(1, 0)
+
+    last_col = len(COLUMNS) - 1
+    ws.autofilter(0, 0, len(cards), last_col)
+
     total = len(cards)
     for idx, card in enumerate(cards):
-        row = idx + 2
+        row = idx + 1
         if idx % 50 == 0:
-            print(f"  Building row {row - 1}/{total} ...")
+            print(f"  Building row {row}/{total} ...")
 
-        # thumbnail (column A)
+        is_alt = idx % 2 == 1
+        fmt = alt_fmt if is_alt else cell_fmt
+        nfmt = alt_num_fmt if is_alt else num_fmt
+        qfmt = alt_qty_fmt if is_alt else qty_fmt
+        lfmt = alt_link_fmt if is_alt else link_fmt
+
+        ws.set_row(row, ROW_HEIGHT_PT)
+
         thumb_path = _download_thumbnail(card["image_url"], card["reference"])
         if thumb_path:
             try:
-                img = XlImage(thumb_path)
-                img.width = THUMB_WIDTH
-                img.height = THUMB_HEIGHT
-                ws.add_image(img, f"A{row}")
+                ws.insert_image(
+                    row,
+                    0,
+                    thumb_path,
+                    {
+                        "x_scale": THUMB_WIDTH / PilImage.open(thumb_path).width,
+                        "y_scale": THUMB_HEIGHT / PilImage.open(thumb_path).height,
+                        "x_offset": 2,
+                        "y_offset": 2,
+                        "object_position": 1,
+                    },
+                )
             except Exception:
                 pass
+        ws.write_blank(row, 0, "", fmt)
 
-        values = [
-            "",  # A: thumbnail placeholder
-            card["name"],
-            card["card_set"],
-            card["faction"],
-            card["rarity"],
-            card["card_type"],
-            _to_int(card["main_cost"]),
-            _to_int(card["recall_cost"]),
-            _to_int(card["mountain_power"]),
-            _to_int(card["ocean_power"]),
-            _to_int(card["forest_power"]),
-            0,  # Quantity
-        ]
+        ws.write(row, 1, card["name"], fmt)
+        ws.write(row, 2, card["card_set"], fmt)
+        ws.write(row, 3, card["faction"], fmt)
+        ws.write(row, 4, card["rarity"], fmt)
+        ws.write(row, 5, card["card_type"], fmt)
 
-        for col_idx, val in enumerate(values, start=1):
-            cell = ws.cell(row=row, column=col_idx, value=val)
-            cell.alignment = CELL_ALIGNMENT
-            cell.border = THIN_BORDER
-            if idx % 2 == 1:
-                cell.fill = ALT_ROW_FILL
+        ws.write(row, 6, _to_int(card["main_cost"]), nfmt)
+        ws.write(row, 7, _to_int(card["recall_cost"]), nfmt)
+        ws.write(row, 8, _to_int(card["mountain_power"]), nfmt)
+        ws.write(row, 9, _to_int(card["ocean_power"]), nfmt)
+        ws.write(row, 10, _to_int(card["forest_power"]), nfmt)
 
-        # Full Image hyperlink (column M)
-        link_cell = ws.cell(row=row, column=13)
+        ws.write(row, 11, 0, qfmt)
+
         if card["image_url"]:
-            link_cell.hyperlink = card["image_url"]
-            link_cell.value = "View Full"
-            link_cell.font = Font(color="0563C1", underline="single")
-        link_cell.alignment = CELL_ALIGNMENT
-        link_cell.border = THIN_BORDER
-        if idx % 2 == 1:
-            link_cell.fill = ALT_ROW_FILL
+            ws.write_url(row, 12, card["image_url"], lfmt, "View Full")
+        else:
+            ws.write_blank(row, 12, "", fmt)
 
-        ws.row_dimensions[row].height = ROW_HEIGHT_PT
-
-    # --- autofilter (columns B through K: Name..Forest) ---
-    last_row = len(cards) + 1
-    last_col_letter = get_column_letter(len(COLUMNS))
-    ws.auto_filter.ref = f"A1:{last_col_letter}{last_row}"
-
-    # --- freeze header row ---
-    ws.freeze_panes = "A2"
-
-    wb.save(output_path)
+    wb.close()
     print(f"Saved catalogue to {output_path}")
 
 
 def _to_int(val: str):
-    """Convert numeric string to int, returning empty string for blanks."""
     if val is None or val == "":
         return ""
     try:
